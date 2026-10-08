@@ -1,0 +1,44 @@
+{
+  "workload": {
+    "url": "http://localhost:8082",
+    "requests": 10000,
+    "concurrency": 32,
+    "symbols": 20,
+    "output": "build/uncached.json"
+  },
+  "host": {
+    "platform": "macOS-26.1-arm64-arm-64bit",
+    "python": "3.9.6",
+    "java": "openjdk version \"24.0.2\" 2025-07-15\nOpenJDK Runtime Environment (build 24.0.2+12-54)\nOpenJDK 64-Bit Server VM (build 24.0.2+12-54, mixed mode, sharing)",
+    "cpu": ""
+  },
+  "elapsed_seconds": 12.649,
+  "requests_per_second": 790.59,
+  "all_requests": {
+    "p50_ms": 40.049,
+    "p95_ms": 47.58,
+    "p99_ms": 51.364
+  },
+  "successful_requests": {
+    "p50_ms": 40.049,
+    "p95_ms": 47.58,
+    "p99_ms": 51.364
+  },
+  "statuses": {
+    "200": 10000
+  },
+  "cache": {
+    "MISS": 6209,
+    "SINGLE_FLIGHT": 3791
+  },
+  "note": "Synthetic local quote lookup; client overhead included; not a production capacity claim.",
+  "recorded_date_ist": "2026-10-08",
+  "server_configuration": {
+    "CACHE_TTL_MS": 0,
+    "CACHE_CAPACITY": 256,
+    "MAX_IN_FLIGHT": 64,
+    "UPSTREAM_TIMEOUT_MS": 120,
+    "MOCK_DELAY_MS": 30,
+    "upstream": "synthetic"
+  }
+}

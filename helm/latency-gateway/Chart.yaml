@@ -1,0 +1,6 @@
+apiVersion: v2
+name: latency-gateway
+description: Bounded Java quote lookup gateway with resilience and metrics
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

@@ -1,0 +1,13 @@
+replicaCount: 2
+image:
+  repository: latency-gateway
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+resources:
+  requests: {cpu: "250m", memory: "192Mi"}
+  limits: {cpu: "1", memory: "384Mi"}
+config:
+  maxInFlight: 64
+  upstreamTimeoutMs: 120
+  cacheTtlMs: 2000
+  cacheCapacity: 256
