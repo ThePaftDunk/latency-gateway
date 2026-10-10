@@ -1,14 +1,19 @@
 package portfolio.gateway;
 
 import java.time.Duration;
+import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class GatewayTest {
     public static void main(String[] args) throws Exception {
         breakerRecovery(); cacheExpiryAndCapacity(); singleFlight(); timeoutCancellation();
-        System.out.println("PASS: 4 Java invariants (breaker generations, cache bounds/TTL, coalescing, cancellation)");
+        bodyBoundaryAndDecoding(); bodyOverflowCancellation();
+        System.out.println("PASS: 6 Java invariants (breaker generations, cache bounds/TTL, coalescing, deadline cancellation, body byte boundary/decoding, overflow cancellation)");
     }
     static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
     static CircuitBreaker breaker() { return new CircuitBreaker(5, Duration.ofSeconds(1), System::nanoTime); }
@@ -55,6 +60,38 @@ public final class GatewayTest {
             try { service.resolve("A"); throw new AssertionError("must timeout"); } catch (QuoteService.Unavailable expected) {}
             check(cancelled.await(1, TimeUnit.SECONDS), "cancel backend work");
             check(service.cacheSize() == 0 && service.timeouts.sum() == 1, "no timeout cached");
+        }
+    }
+    static final class Subscription implements Flow.Subscription {
+        boolean cancelled;
+        public void request(long count) {}
+        public void cancel() { cancelled = true; }
+    }
+    static void bodyBoundaryAndDecoding() throws Exception {
+        byte[] bytes = "a€b".getBytes(StandardCharsets.UTF_8);
+        var body = new BoundedBodyHandler.Subscriber(HttpResponse.BodySubscribers.ofString(StandardCharsets.UTF_8), bytes.length);
+        var subscription = new Subscription();
+        var result = body.getBody().toCompletableFuture();
+        body.onSubscribe(subscription);
+        body.onNext(List.of(ByteBuffer.wrap(bytes, 0, 2))); // Split the multibyte character.
+        body.onNext(List.of(ByteBuffer.wrap(bytes, 2, 1), ByteBuffer.wrap(bytes, 3, 2)));
+        body.onComplete();
+        check(result.get(1, TimeUnit.SECONDS).equals("a€b"), "decode an exact byte boundary across buffers");
+        check(!subscription.cancelled, "normal completion keeps the subscription");
+    }
+    static void bodyOverflowCancellation() throws Exception {
+        var body = new BoundedBodyHandler.Subscriber(HttpResponse.BodySubscribers.ofString(StandardCharsets.UTF_8), 4);
+        var subscription = new Subscription();
+        body.onSubscribe(subscription);
+        body.onNext(List.of(ByteBuffer.wrap(new byte[3])));
+        body.onNext(List.of(ByteBuffer.wrap(new byte[1]), ByteBuffer.wrap(new byte[1])));
+        check(subscription.cancelled, "cancel at the first overflowing batch");
+        body.onComplete(); // A late terminal callback must not turn a rejected body into success.
+        try {
+            body.getBody().toCompletableFuture().get(1, TimeUnit.SECONDS);
+            throw new AssertionError("overflow must fail");
+        } catch (ExecutionException expected) {
+            check(expected.getCause() instanceof java.io.IOException, "body failure must propagate");
         }
     }
 }
