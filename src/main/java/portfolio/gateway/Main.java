@@ -30,8 +30,8 @@ public final class Main {
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofMillis(timeout)).build();
             backend = symbol -> {
                 HttpRequest request = HttpRequest.newBuilder(URI.create(upstream + (upstream.contains("?") ? "&" : "?") + "symbol=" + symbol)).timeout(Duration.ofMillis(timeout)).GET().build();
-                HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() != 200 || response.body().length() > 65536) throw new IllegalStateException("upstream response rejected");
+                HttpResponse<String> response = client.send(request, new BoundedBodyHandler(65536));
+                if (response.statusCode() != 200) throw new IllegalStateException("upstream response rejected");
                 return response.body();
             };
         }
